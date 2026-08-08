@@ -80,7 +80,7 @@ def assert_task_exists(id, tasks):
         raise ValueError(f"Task of ID {id} does not exist")
 
 def handle_add(ns: Namespace):
-    id = max(0, *ns.tasks.keys()) + 1
+    id = max(ns.tasks.keys()) + 1 if ns.tasks else 0
     now = datetime.now()
     ns.tasks[id] = Task(ns.description, Status.TODO, now, now)
     dump_tasks(ns.tasks, ns.path)
@@ -123,6 +123,8 @@ def main():
     path = "task.json"
     try:
         tasks = load_tasks(path)
+    except OSError:
+        tasks = {}
     except Exception as e:
         print(f"Exception when reading task file: {e}")
         exit(0)
