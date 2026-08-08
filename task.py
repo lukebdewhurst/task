@@ -1,0 +1,167 @@
+from dataclasses import dataclass, fields, replace
+from datetime import datetime
+from enum import Enum
+from json import load, dump
+from argparse import ArgumentParser, Namespace
+
+class Status(Enum):
+    TODO = "todo"
+    IN_PROGRESS = "in-progress"
+    DONE = "done"
+
+@dataclass(frozen=True)
+class Task:
+    description: str
+    status: Status
+    created_at: datetime
+    updated_at: datetime
+
+    # Validate instance
+    def __post_init__(self):
+        if not self.description.strip():
+            raise ValueError("Empty description")
+
+    # Map Task from JSON serializable (data) dict
+    @classmethod
+    def from_data(cls, data: dict):
+        types = {field.name: field.type for field in fields(cls)}
+        for name, value in data.items():
+            # Skip items not defined by Task
+            if name not in types:
+                del data[name]
+                continue
+            # Map data
+            type = types[name]
+            if type == Status:
+                data[name] = Status(value)
+            elif type == datetime:
+                data[name] = datetime.fromisoformat(value)
+        return cls(**data)
+
+    # Map Task to JSON serializable (data) dict
+    def to_data(self):
+        pairs = []
+        for name in map(lambda field: field.name, fields(self)):
+            value = getattr(self, name)
+            if isinstance(value, Status):
+                value = value.value
+            elif isinstance(value, datetime):
+                value = value.isoformat()
+            pairs.append((name, value))
+        return dict(pairs)
+
+def load_tasks(path: str):
+    with open(path, "r") as file:
+        tasks: dict[int, Task] = {}
+        data = load(file)
+        if not isinstance(data, dict):
+            raise ValueError("Root is not a dict")
+        for k, v in data.items():
+            id = None
+            try:
+                id = int(k)
+            except ValueError as e:
+                raise ValueError(f"Cannot cast task ID: {e}")
+            if not isinstance(v, dict):
+                raise ValueError(f"Task of ID {id} is not a dict")
+            try:
+                tasks[id] = Task.from_data(v)
+            except Exception as e:
+                raise Exception(f"Exception when mapping task of ID {id}: {e}")
+        return tasks
+
+def dump_tasks(tasks: dict[int, Task], path: str):
+    data = {id: task.to_data() for id, task in tasks.items()}
+    with open(path, "w+") as file:
+        dump(data, file, indent=4)
+
+def assert_task_exists(id, tasks):
+    if id not in tasks:
+        raise ValueError(f"Task of ID {id} does not exist")
+
+def handle_add(ns: Namespace):
+    id = max(0, *ns.tasks.keys()) + 1
+    now = datetime.now()
+    ns.tasks[id] = Task(ns.description, Status.TODO, now, now)
+    dump_tasks(ns.tasks, ns.path)
+    print(f"Created task of ID {id}")
+
+def handle_remove(ns: Namespace):
+    assert_task_exists(ns.id, ns.tasks)
+    del ns.tasks[ns.id]
+    dump_tasks(ns.tasks, ns.path)
+
+def handle_update(ns: Namespace):
+    assert_task_exists(ns.id, ns.tasks)
+    ns.tasks[ns.id] = replace(ns.tasks[ns.id], description=ns.description)
+    dump_tasks(ns.tasks, ns.path)
+
+def handle_mark_in_progress(ns: Namespace):
+    assert_task_exists(ns.id, ns.tasks)
+    ns.tasks[ns.id] = replace(ns.tasks[ns.id], status=Status.IN_PROGRESS)
+    dump_tasks(ns.tasks, ns.path)
+
+def handle_mark_done(ns: Namespace):
+    assert_task_exists(ns.id, ns.tasks)
+    ns.tasks[ns.id] = replace(ns.tasks[ns.id], status=Status.DONE)
+    dump_tasks(ns.tasks, ns.path)
+
+def handle_list(ns: Namespace):
+    tasks: dict[int, Task] = ns.tasks
+    status = Status(ns.status) if ns.status else None
+    for id, task in tasks.items():
+        if status and task.status != status:
+            continue # Skip filtered tasks
+        print(f"Task {id}: {task.description}")
+        if not status:
+            print(f"| Status: {task.status.value}")
+        print(f"| Created At: {task.created_at.isoformat()}")
+        print(f"| Updated At: {task.updated_at.isoformat()}")
+        print("*")
+
+def main():
+    path = "task.json"
+    try:
+        tasks = load_tasks(path)
+    except Exception as e:
+        print(f"Exception when reading task file: {e}")
+        exit(0)
+
+    parser = ArgumentParser()
+    parser.set_defaults(path=path, tasks=tasks)
+    subparsers = parser.add_subparsers(required=True)
+
+    add_parser = subparsers.add_parser("add")
+    add_parser.set_defaults(handler=handle_add)
+    add_parser.add_argument("description")
+
+    remove_parser = subparsers.add_parser("remove")
+    remove_parser.set_defaults(handler=handle_remove)
+    remove_parser.add_argument("id", type=int)
+
+    update_parser = subparsers.add_parser("update")
+    update_parser.set_defaults(handler=handle_update)
+    update_parser.add_argument("id", type=int)
+    update_parser.add_argument("description")
+
+    mark_in_progress_parser = subparsers.add_parser("mark-in-progress")
+    mark_in_progress_parser.set_defaults(handler=handle_mark_in_progress)
+    mark_in_progress_parser.add_argument("id", type=int)
+
+    mark_done_parser = subparsers.add_parser("mark-done")
+    mark_done_parser.set_defaults(handler=handle_mark_done)
+    mark_done_parser.add_argument("id", type=int)
+
+    list_parser = subparsers.add_parser("list")
+    list_parser.set_defaults(handler=handle_list)
+    list_parser.add_argument("status", nargs="?")
+
+    args = parser.parse_args()
+    try:
+        args.handler(args)
+    except Exception as e:
+        print(f"Exception when running command: {e}")
+        exit(1)
+
+if __name__ == "__main__":
+    main()
