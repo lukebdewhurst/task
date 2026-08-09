@@ -129,30 +129,34 @@ def handle_list(ns: Namespace):
 def main():
     parser = ArgumentParser()
     subparsers = parser.add_subparsers(required=True)
-    parser.add_argument("--file", nargs=1)
 
-    add_parser = subparsers.add_parser("add")
+    def add_subparser(name):
+        subparser = subparsers.add_parser(name)
+        subparser.add_argument("--file", nargs=1, help="Path to data file")
+        return subparser
+
+    add_parser = add_subparser("add")
     add_parser.set_defaults(handler=handle_add)
     add_parser.add_argument("description")
 
-    remove_parser = subparsers.add_parser("remove")
+    remove_parser = add_subparser("remove")
     remove_parser.set_defaults(handler=handle_remove)
     remove_parser.add_argument("id", type=int)
 
-    update_parser = subparsers.add_parser("update")
+    update_parser = add_subparser("update")
     update_parser.set_defaults(handler=handle_update)
     update_parser.add_argument("id", type=int)
     update_parser.add_argument("description")
 
-    mark_in_progress_parser = subparsers.add_parser("mark-in-progress")
+    mark_in_progress_parser = add_subparser("mark-in-progress")
     mark_in_progress_parser.set_defaults(handler=handle_mark_in_progress)
     mark_in_progress_parser.add_argument("id", type=int)
 
-    mark_done_parser = subparsers.add_parser("mark-done")
+    mark_done_parser = add_subparser("mark-done")
     mark_done_parser.set_defaults(handler=handle_mark_done)
     mark_done_parser.add_argument("id", type=int)
 
-    list_parser = subparsers.add_parser("list")
+    list_parser = add_subparser("list")
     list_parser.set_defaults(handler=handle_list)
     for status in Status:
         list_parser.add_argument(f"--{status.value}", action="store_true")

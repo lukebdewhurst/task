@@ -1,7 +1,8 @@
 # Task tracker
 
-Manage your tasks directly from the command line! Data is stored in JSON
-format in the programs working directory.
+Manage your tasks directly from the command line! Stores data in JSON format 
+(default location is the program's directory, but it can optionally be user
+supplied).
 
 This is a [Python](https://www.python.org/) implementation of the
 [Task Tracker project on roadmap.sh](https://roadmap.sh/projects/task-tracker).
@@ -11,7 +12,7 @@ This is a [Python](https://www.python.org/) implementation of the
 - [Python 3.14+](https://www.python.org/downloads/) *Older versions may work, 
 but I haven't tested them.*
 
-## Usage
+## Example Usage
 
 ```bash
 # First, lets print the help message:
@@ -79,4 +80,32 @@ Task 2: Find a shrubbery
 
 # And we can remove tasks at any point
 $ py task.py remove 2
+
+# By default, tasks are stored in a task.json file in the programs directory.
+# We can override this using the optional --file argument:
+$ py task.py add "Release Brian!!!" --file ./brian.json
+```
+
+## Example data file
+```json
+{
+    "0": {
+        "description": "Seek the Holy Grail",
+        "status": "in-progress",
+        "created_at": "2026-08-09T15:20:17.534020",
+        "updated_at": "2026-08-09T15:20:17.534020"
+    },
+    "1": {
+        "description": "Calculate the air-speed velocity of an unladen African swallow",
+        "status": "todo",
+        "created_at": "2026-08-09T15:20:27.223484",
+        "updated_at": "2026-08-09T15:20:27.223484"
+    },
+    "2": {
+        "description": "Find a shrubbery",
+        "status": "done",
+        "created_at": "2026-08-09T15:20:53.988924",
+        "updated_at": "2026-08-09T15:20:53.988924"
+    }
+}
 ```
