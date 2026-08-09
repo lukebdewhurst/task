@@ -1,8 +1,8 @@
+from argparse import ArgumentParser, Namespace
 from dataclasses import dataclass, fields, replace
 from datetime import datetime
 from enum import Enum
-from json import load, dump
-from argparse import ArgumentParser, Namespace
+from json import dump, load
 from pathlib import Path
 
 class Status(Enum):
@@ -114,8 +114,8 @@ def handle_list(ns: Namespace):
     # NOTE: "-" is replaced with "_" for namespace attributes, so "in-progress"
     # becomes "in_progress".
     mask = {s for s in Status if getattr(ns, s.value.replace("-", "_"))}
-    tasks = {(id, task) for id, task in ns.tasks.items()
-             if len(mask) == 0 or task.status in mask}
+    tasks = [(id, task) for id, task in ns.tasks.items()
+             if len(mask) == 0 or task.status in mask]
     if len(tasks) == 0:
         print("No tasks to list")
         return
