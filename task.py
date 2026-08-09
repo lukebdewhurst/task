@@ -3,6 +3,7 @@ from datetime import datetime
 from enum import Enum
 from json import load, dump
 from argparse import ArgumentParser, Namespace
+from pathlib import Path
 
 class Status(Enum):
     TODO = "todo"
@@ -50,7 +51,7 @@ class Task:
             pairs.append((name, value))
         return dict(pairs)
 
-def load_tasks(path: str):
+def load_tasks(path: Path):
     with open(path, "r") as file:
         tasks: dict[int, Task] = {}
         data = load(file)
@@ -70,7 +71,7 @@ def load_tasks(path: str):
                 raise Exception(f"Exception when mapping task of ID {id}: {e}")
         return tasks
 
-def dump_tasks(tasks: dict[int, Task], path: str):
+def dump_tasks(tasks: dict[int, Task], path: Path):
     data = {id: task.to_data() for id, task in tasks.items()}
     with open(path, "w+") as file:
         dump(data, file, indent=4)
@@ -123,18 +124,9 @@ def handle_list(ns: Namespace):
         print("*")
 
 def main():
-    path = "task.json"
-    try:
-        tasks = load_tasks(path)
-    except OSError:
-        tasks = {}
-    except Exception as e:
-        print(f"Exception when reading task file: {e}")
-        exit(0)
-
     parser = ArgumentParser()
-    parser.set_defaults(path=path, tasks=tasks)
     subparsers = parser.add_subparsers(required=True)
+    parser.add_argument("--file", nargs=1)
 
     add_parser = subparsers.add_parser("add")
     add_parser.set_defaults(handler=handle_add)
@@ -162,9 +154,20 @@ def main():
     for status in Status:
         list_parser.add_argument(f"--{status.value}", action="store_true")
 
-    args = parser.parse_args()
+    ns = parser.parse_args()
+    ns.path = (Path(ns.file[0]).resolve() if ns.file else 
+               Path(Path(__file__).parent, "task.json"))
+
     try:
-        args.handler(args)
+        ns.tasks = load_tasks(ns.path)
+    except OSError:
+        ns.tasks = {} # Treat no file as empty file
+    except Exception as e:
+        print(f"Exception when loading task file: {e}")
+        exit(1)
+
+    try:
+        ns.handler(ns)
     except Exception as e:
         print(f"Exception when running command: {e}")
         exit(1)
