@@ -107,14 +107,17 @@ def handle_mark_done(ns: Namespace):
     dump_tasks(ns.tasks, ns.path)
 
 def handle_list(ns: Namespace):
-    tasks: dict[int, Task] = ns.tasks
-    status = Status(ns.status) if ns.status else None
-    for id, task in tasks.items():
-        if status and task.status != status:
-            continue # Skip filtered tasks
+    # Mask is a set of statuses to filter by. Only tasks with a status contained
+    # in mask should be printed, unless the mask is empty (in which case, the
+    # user didn't supply any statuses to filter by).
+    # NOTE: "-" is replaced with "_" for namespace attributes, so "in-progress"
+    # becomes "in_progress".
+    mask = {s for s in Status if getattr(ns, s.value.replace("-", "_"))}
+    for id, task in ns.tasks.items():
+        if len(mask) > 0 and task.status not in mask:
+            continue
         print(f"Task {id}: {task.description}")
-        if not status:
-            print(f"| Status: {task.status.value}")
+        print(f"| Status: {task.status.value}")
         print(f"| Created At: {task.created_at.isoformat()}")
         print(f"| Updated At: {task.updated_at.isoformat()}")
         print("*")
@@ -156,7 +159,8 @@ def main():
 
     list_parser = subparsers.add_parser("list")
     list_parser.set_defaults(handler=handle_list)
-    list_parser.add_argument("status", nargs="?")
+    for status in Status:
+        list_parser.add_argument(f"--{status.value}", action="store_true")
 
     args = parser.parse_args()
     try:
