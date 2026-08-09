@@ -114,9 +114,12 @@ def handle_list(ns: Namespace):
     # NOTE: "-" is replaced with "_" for namespace attributes, so "in-progress"
     # becomes "in_progress".
     mask = {s for s in Status if getattr(ns, s.value.replace("-", "_"))}
-    for id, task in ns.tasks.items():
-        if len(mask) > 0 and task.status not in mask:
-            continue
+    tasks = {(id, task) for id, task in ns.tasks.items()
+             if len(mask) == 0 or task.status in mask}
+    if len(tasks) == 0:
+        print("No tasks to list")
+        return
+    for id, task in tasks:
         print(f"Task {id}: {task.description}")
         print(f"| Status: {task.status.value}")
         print(f"| Created At: {task.created_at.isoformat()}")
